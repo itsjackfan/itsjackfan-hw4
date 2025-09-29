@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 import uvicorn
 
-from backend.models.county_data import (
+from models.county_data import (
     CountyDataRequest,
     CountyDataResponse,
     CountyHealthRecord,
