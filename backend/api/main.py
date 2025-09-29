@@ -1,45 +1,39 @@
-"""
-Main API server for the backend.
-Self-coded with tab autocompletion in Cursor + GPT-5-Codex.
-"""
+"""Flask application providing county health rankings endpoints."""
 
 import json
 import sqlite3
 from pathlib import Path
+from typing import List
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
+from flask import Flask, jsonify, render_template, request
 from pydantic import ValidationError
-import uvicorn
 
-from backend.models.county_data import (
-    CountyDataRequest,
-    CountyDataResponse,
-    CountyHealthRecord,
-)
+from backend.models.county_data import CountyDataRequest, CountyHealthRecord
 
 
-app = FastAPI()
+def _templates_path() -> Path:
+    return Path(__file__).parent / "templates"
 
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+app = Flask(__name__, template_folder=str(_templates_path()))
+app.config.setdefault("DATABASE_PATH", Path("data.db"))
 
 
 def get_database_path() -> Path:
-    return Path("data.db")
+    return Path(app.config["DATABASE_PATH"])
 
 
-@app.get("/")
-async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.route("/")
+def root() -> str:
+    return render_template("index.html")
 
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "healthy"})
 
 
-def query_county_data(db_path: Path, payload: CountyDataRequest) -> CountyDataResponse:
+def query_county_data(db_path: Path, payload: CountyDataRequest) -> List[dict]:
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
 
@@ -71,54 +65,45 @@ def query_county_data(db_path: Path, payload: CountyDataRequest) -> CountyDataRe
     finally:
         connection.close()
 
-    return [CountyHealthRecord(**dict(row)) for row in rows]
+    return [CountyHealthRecord(**dict(row)).model_dump() for row in rows]
 
 
-async def parse_county_data_request(request: Request) -> CountyDataRequest:
+@app.route("/county_data", methods=["POST"])
+def county_data_endpoint():
     try:
-        data = await request.json()
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=422, detail="Invalid JSON payload") from exc
+        data = request.get_json(force=True)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return jsonify(detail="Invalid JSON payload"), 422
 
     try:
-        return CountyDataRequest(**data)
+        body = CountyDataRequest(**data)
     except ValidationError as exc:
         message = exc.errors()[0]["msg"] if exc.errors() else "Invalid request"
         if message.startswith("Value error, "):
             message = message[len("Value error, ") :]
-        raise HTTPException(status_code=400, detail=message) from exc
+        return jsonify(detail=message), 400
 
-
-@app.post("/county_data", response_model=CountyDataResponse)
-async def county_data_endpoint(
-    request: Request,
-    body: CountyDataRequest = Depends(parse_county_data_request),
-    db_path: Path = Depends(get_database_path),
-):
     if body.coffee == "teapot":
-        raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT, detail="I'm a teapot")
+        return jsonify(detail="I'm a teapot"), 418
 
     if not body.zip:
-        raise HTTPException(status_code=400, detail="Missing required field: zip")
+        return jsonify(detail="Missing required field: zip"), 400
 
     if not body.measure_name:
-        raise HTTPException(status_code=400, detail="Missing required field: measure_name")
+        return jsonify(detail="Missing required field: measure_name"), 400
 
-    results = query_county_data(db_path, body)
+    results = query_county_data(get_database_path(), body)
 
     if not results:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No data found for provided zip and measure",
-        )
+        return jsonify(detail="No data found for provided zip and measure"), 404
 
-    return results
+    return jsonify(results)
 
 
-@app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+@app.errorhandler(ValueError)
+def handle_value_error(exc: ValueError):
+    return jsonify(detail=str(exc)), 400
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000, debug=True)

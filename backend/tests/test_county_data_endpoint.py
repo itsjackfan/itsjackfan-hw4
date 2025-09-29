@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fastapi.testclient import TestClient
+from flask.testing import FlaskClient
 
 from backend.api.main import app, get_database_path
 from backend.models.county_data import ALLOWED_MEASURES
@@ -232,11 +232,10 @@ class TestCountyDataEndpoint(unittest.TestCase):
         self.db_path = Path(self.temp_dir.name) / "data.db"
         create_test_database(self.db_path)
 
-        app.dependency_overrides[get_database_path] = lambda: self.db_path
-        self.client = TestClient(app)
+        app.config["DATABASE_PATH"] = self.db_path
+        self.client: FlaskClient = app.test_client()
 
     def tearDown(self):
-        app.dependency_overrides.clear()
         self.temp_dir.cleanup()
 
     def post(self, payload: dict):
@@ -246,7 +245,7 @@ class TestCountyDataEndpoint(unittest.TestCase):
         response = self.post({"zip": "02138", "measure_name": "Adult obesity"})
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
+        body = response.get_json()
         self.assertIsInstance(body, list)
         self.assertEqual(len(body), 7)
 
@@ -277,7 +276,7 @@ class TestCountyDataEndpoint(unittest.TestCase):
         response = self.post({"zip": "02138", "measure_name": "Adult obesity"})
 
         self.assertEqual(response.status_code, 200)
-        body = response.json()
+        body = response.get_json()
 
         expected = [
             {
@@ -400,31 +399,31 @@ class TestCountyDataEndpoint(unittest.TestCase):
         response = self.post({"measure_name": "Adult obesity"})
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "Missing required field: zip")
+        self.assertEqual(response.get_json()["detail"], "Missing required field: zip")
 
     def test_missing_measure_name_returns_bad_request(self):
         response = self.post({"zip": "02138"})
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "Missing required field: measure_name")
+        self.assertEqual(response.get_json()["detail"], "Missing required field: measure_name")
 
     def test_invalid_zip_format_returns_bad_request(self):
         response = self.post({"zip": "2138", "measure_name": "Adult obesity"})
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "ZIP must be a 5-digit string")
+        self.assertEqual(response.get_json()["detail"], "ZIP must be a 5-digit string")
 
     def test_invalid_measure_name_returns_bad_request(self):
         response = self.post({"zip": "02138", "measure_name": "Invalid Measure"})
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "Invalid measure_name")
+        self.assertEqual(response.get_json()["detail"], "Invalid measure_name")
 
     def test_coffee_teapot_returns_418(self):
         response = self.post({"zip": "02138", "measure_name": "Adult obesity", "coffee": "teapot"})
 
         self.assertEqual(response.status_code, 418)
-        self.assertEqual(response.json()["detail"], "I'm a teapot")
+        self.assertEqual(response.get_json()["detail"], "I'm a teapot")
 
     def test_coffee_teapot_supersedes_missing_fields(self):
         response = self.post({"coffee": "teapot"})
@@ -436,7 +435,7 @@ class TestCountyDataEndpoint(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
         self.assertEqual(
-            response.json()["detail"], "No data found for provided zip and measure"
+            response.get_json()["detail"], "No data found for provided zip and measure"
         )
 
     def test_nonexistent_measure_for_existing_zip_returns_not_found(self):
@@ -449,7 +448,7 @@ class TestCountyDataEndpoint(unittest.TestCase):
         response = self.post({"zip": malicious_zip, "measure_name": "Adult obesity"})
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "ZIP must be a 5-digit string")
+        self.assertEqual(response.get_json()["detail"], "ZIP must be a 5-digit string")
 
     def test_post_to_wrong_endpoint_returns_not_found(self):
         response = self.client.post(
