@@ -1,5 +1,12 @@
 {
-    "rewrites": [
-        { "source": "/(.*)", "destination": "/backend/api/main" }
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "functions": {
+        "api/*.py": {
+            "includeFiles": "data.db"
+        }
+    },
+    "routes": [
+        { "src": "/county_data", "dest": "api/index.py" },
+        { "src": "/(.*)", "dest": "api/index.py" }
     ]
 }
