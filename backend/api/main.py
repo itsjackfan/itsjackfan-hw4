@@ -9,6 +9,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 import uvicorn
 
@@ -21,14 +22,16 @@ from backend.models.county_data import (
 
 app = FastAPI()
 
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
 
 def get_database_path() -> Path:
     return Path("data.db")
 
 
 @app.get("/")
-async def root():
-    return {"message": "Hello World"}
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/health")

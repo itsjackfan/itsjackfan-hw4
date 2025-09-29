@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>County Health Lookup</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      body {
+        margin: 0;
+        background-color: #f6f7fb;
+        color: #1f2937;
+      }
+
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px 60px;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 2.6rem);
+        letter-spacing: -0.02em;
+      }
+
+      p.subtitle {
+        margin: 0 auto;
+        max-width: 560px;
+        color: #4b5563;
+      }
+
+      section.card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        padding: 28px;
+        margin-bottom: 28px;
+      }
+
+      h2 {
+        margin-top: 0;
+        font-size: 1.25rem;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-top: 18px;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #374151;
+      }
+
+      input,
+      select,
+      button,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus,
+      button:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+
+      button.primary {
+        background-color: #2563eb;
+        color: #ffffff;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 12px;
+        transition: background-color 0.2s ease;
+      }
+
+      button.primary:hover {
+        background-color: #1d4ed8;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        display: none;
+        font-size: 0.95rem;
+      }
+
+      .status.error {
+        background-color: #fee2e2;
+        color: #991b1b;
+      }
+
+      .status.success {
+        background-color: #ecfdf5;
+        color: #065f46;
+      }
+
+      pre.output {
+        background-color: #111827;
+        color: #f3f4f6;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.9rem;
+        max-height: 380px;
+      }
+
+      footer {
+        text-align: center;
+        margin-top: 32px;
+        color: #6b7280;
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 600px) {
+        main {
+          padding: 24px 16px;
+        }
+
+        section.card {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>County Health Rankings Explorer</h1>
+        <p class="subtitle">
+          Interactively query the FastAPI backend to retrieve county-level health
+          metrics filtered by ZIP code and measure name, verify API status, and
+          inspect the raw SQLite data.
+        </p>
+      </header>
+
+      <section class="card" id="healthcard">
+        <h2>Health Check</h2>
+        <p>Confirm that the FastAPI service is online and responsive.</p>
+        <button class="primary" id="pingButton">Ping /health</button>
+        <div class="status" id="pingStatus"></div>
+      </section>
+
+      <section class="card" id="querycard">
+        <h2>County Data Lookup</h2>
+        <p>
+          Enter a 5-digit ZIP code and select one of the supported measures to
+          fetch the corresponding records from the `county_health_rankings`
+          table.
+        </p>
+
+        <form id="lookupForm">
+          <div class="form-grid">
+            <div>
+              <label for="zipInput">ZIP Code</label>
+              <input
+                type="text"
+                id="zipInput"
+                maxlength="5"
+                placeholder="e.g. 02138"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="measureSelect">Measure Name</label>
+              <select id="measureSelect" required>
+                <option value="Adult obesity">Adult obesity</option>
+                <option value="Physical inactivity">Physical inactivity</option>
+                <option value="Unemployment">Unemployment</option>
+                <option value="Children in poverty">Children in poverty</option>
+                <option value="Violent crime rate">Violent crime rate</option>
+                <option value="Diabetic screening">Diabetic screening</option>
+                <option value="Mammography screening">Mammography screening</option>
+                <option value="Preventable hospital stays">Preventable hospital stays</option>
+                <option value="Uninsured">Uninsured</option>
+                <option value="Sexually transmitted infections">Sexually transmitted infections</option>
+                <option value="Premature Death">Premature Death</option>
+                <option value="Daily fine particulate matter">Daily fine particulate matter</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="coffeeToggle">Optional Easter Egg</label>
+              <select id="coffeeToggle">
+                <option value="">(none)</option>
+                <option value="teapot">coffee=teapot (HTTP 418)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="primary">Query County Data</button>
+        </form>
+
+        <div class="status error" id="queryError"></div>
+        <div class="status success" id="querySuccess"></div>
+        <pre class="output" id="queryOutput" style="display: none"></pre>
+      </section>
+
+      <section class="card" id="curlcard">
+        <h2>Reusable curl Commands</h2>
+        <p>
+          Copy or adapt these ready-made `curl` calls to validate the API from
+          your terminal. Responses mirror the JSON shown in the lookup panel.
+        </p>
+        <textarea rows="10" readonly>
+curl -s -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"zip":"02138","measure_name":"Adult obesity"}' | jq
+
+curl -s -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"zip":"02138","measure_name":"Adult obesity"}' \ 
+  | jq 'map(select(.year_span=="2009"))'
+
+curl -s -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"zip":"02138","measure_name":"Unemployment"}' | jq '.'
+
+curl -i -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"zip":"02138'' OR ''1''=''1","measure_name":"Adult obesity"}'
+
+curl -i -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"coffee":"teapot"}'
+
+curl -i -X POST http://127.0.0.1:8000/county_data \ 
+  -H "Content-Type: application/json" \ 
+  -d '{"zip":"02138"}'
+        </textarea>
+      </section>
+
+      <footer>
+        FastAPI backend demo · County Health Rankings · ZIP-driven insights
+      </footer>
+    </main>
+
+    <script>
+      const baseUrl = window.location.origin;
+
+      async function requestJSON(path, options = {}) {
+        const response = await fetch(path, options);
+        const payload = await response.json();
+        return { ok: response.ok, status: response.status, payload };
+      }
+
+      function formatJSON(data) {
+        return JSON.stringify(data, null, 2);
+      }
+
+      function showStatus(element, message, type) {
+        element.textContent = message;
+        element.classList.remove("error", "success");
+        element.classList.add(type);
+        element.style.display = "block";
+      }
+
+      document.getElementById("pingButton").addEventListener("click", async () => {
+        const statusBox = document.getElementById("pingStatus");
+        statusBox.style.display = "none";
+
+        try {
+          const { ok, status, payload } = await requestJSON(`${baseUrl}/health`);
+          if (ok) {
+            showStatus(statusBox, `Service healthy (HTTP ${status}): ${formatJSON(payload)}`, "success");
+          } else {
+            showStatus(statusBox, `Unexpected response (HTTP ${status}): ${formatJSON(payload)}`, "error");
+          }
+        } catch (error) {
+          showStatus(statusBox, `Request failed: ${error.message}`, "error");
+        }
+      });
+
+      document.getElementById("lookupForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const zip = document.getElementById("zipInput").value.trim();
+        const measure = document.getElementById("measureSelect").value;
+        const coffee = document.getElementById("coffeeToggle").value;
+
+        const errorBox = document.getElementById("queryError");
+        const successBox = document.getElementById("querySuccess");
+        const output = document.getElementById("queryOutput");
+
+        errorBox.style.display = "none";
+        successBox.style.display = "none";
+        output.style.display = "none";
+
+        if (!/^\d{5}$/.test(zip)) {
+          showStatus(errorBox, "ZIP must be a 5-digit numeric string.", "error");
+          return;
+        }
+
+        const body = { zip, measure_name: measure };
+        if (coffee) {
+          body.coffee = coffee;
+        }
+
+        try {
+          const { ok, status, payload } = await requestJSON(`${baseUrl}/county_data`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          if (ok) {
+            showStatus(successBox, `Success (HTTP ${status}). Returned ${payload.length} record(s).`, "success");
+            output.textContent = formatJSON(payload);
+            output.style.display = "block";
+          } else {
+            const detail = payload?.detail ?? "An error occurred.";
+            showStatus(errorBox, `Error (HTTP ${status}): ${detail}`, "error");
+          }
+        } catch (error) {
+          showStatus(errorBox, `Request failed: ${error.message}`, "error");
+        }
+      });
+    </script>
+  </body>
+</html>
+

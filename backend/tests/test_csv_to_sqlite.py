@@ -12,7 +12,7 @@ import unittest
 
 class TestCSVToSQLite(unittest.TestCase):
     def test_convert_csv_creates_database_with_expected_table_and_rows(self):
-        from backend.scripts.csv_to_sqlite import convert_csv_to_sqlite
+        from csv_to_sqlite import convert_csv_to_sqlite
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
@@ -43,7 +43,7 @@ class TestCSVToSQLite(unittest.TestCase):
                 self.assertEqual(rows, [("1", "Alice"), ("2", "Bob")])
 
     def test_multiple_csv_files_create_multiple_tables_in_same_database(self):
-        from backend.scripts.csv_to_sqlite import convert_csv_to_sqlite
+        from csv_to_sqlite import convert_csv_to_sqlite
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
